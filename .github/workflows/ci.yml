@@ -1,0 +1,68 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Lint
+        run: |
+          uvx ruff check .
+          uvx ruff format --check .
+      - name: Test
+        run: uv run --python 3.12 --group dev pytest -q
+
+  policy-check:
+    # Dogfood: run the policy gate on the example policies, then publish SARIF to the Security tab.
+    runs-on: ubuntu-latest
+    needs: test
+    permissions:
+      contents: read
+      security-events: write  # required by upload-sarif
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # the gate diffs against the base branch
+      - uses: astral-sh/setup-uv@v6
+      - name: Gate on changed policy files (clean examples, passes)
+        run: |
+          base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then base="HEAD~1"; fi
+          uv run --python 3.12 iamlens check examples/policies --base "$base" --summary policy-summary.md
+      - name: The gate fails on the bad examples
+        run: |
+          set +e
+          uv run --python 3.12 iamlens check examples/policies-bad --sarif iamlens.sarif
+          code=$?
+          set -e
+          test "$code" -eq 1
+      # Uploading SARIF needs code scanning enabled on the repository (public repos have it; private repos
+      # need GitHub Advanced Security). continue-on-error keeps the run green when it is not enabled.
+      - name: Upload SARIF
+        if: always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: iamlens.sarif
+          category: iamlens
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t iam-lens:ci .
+      - name: Smoke test the container
+        run: |
+          docker run -d --name il -p 8839:8839 iam-lens:ci
+          for i in $(seq 1 40); do curl -sf http://localhost:8839/healthz && break; sleep 2; done
+          curl -sf "http://localhost:8839/api/findings?limit=1" > /dev/null
+          curl -sf -XPOST http://localhost:8839/api/campaigns -H 'content-type: application/json' -d '{"name":"ci"}' > /dev/null
+          curl -sf http://localhost:8839/metrics | grep iamlens_findings_critical
+          docker rm -f il

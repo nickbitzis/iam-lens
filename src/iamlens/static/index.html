@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IAM Lens</title>
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --text: #1c2330; --muted: #5d6878; --border: #dde2e9;
+  --track: #e8ebf0; --accent: #2f6fdb; --good: #11804f; --good-soft: #e3f5ec;
+  --warn: #8a5a00; --warn-soft: #fff4dc; --bad: #b42318; --bad-soft: #fde8e6;
+  --crit: #8f1d5c; --crit-soft: #fbe4f0; --add: #e3f5ec; --del: #fde8e6;
+  --radius: 10px; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #11151c; --panel: #181e27; --text: #e6eaf0; --muted: #9aa5b5; --border: #2a3340;
+    --track: #232b37; --accent: #6c9cf0; --good: #4ccb8f; --good-soft: #15302a;
+    --warn: #f3c46b; --warn-soft: #3a2e14; --bad: #ff8a7a; --bad-soft: #3b1d1b;
+    --crit: #ff8fc8; --crit-soft: #3c1a2d; --add: #15302a; --del: #3b1d1b;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html, body { overflow-x: hidden; }
+body { margin: 0; background: var(--bg); color: var(--text); font-size: 14px; }
+a { color: var(--accent); }
+header { padding: 14px 24px; display: flex; align-items: center; gap: 8px 18px; flex-wrap: wrap; border-bottom: 1px solid var(--border); background: var(--panel); }
+h1 { font-size: 18px; margin: 0; }
+nav { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+nav a { color: var(--muted); text-decoration: none; font-weight: 600; }
+nav a.on { color: var(--accent); }
+h2 { font-size: 13px; margin: 0 0 10px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+h3 { margin: 0 0 6px; font-size: 16px; overflow-wrap: anywhere; }
+.muted { color: var(--muted); }
+main { padding: 16px 24px 32px; display: grid; gap: 16px; grid-template-columns: repeat(12, minmax(0, 1fr)); max-width: 1500px; }
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; min-width: 0; }
+.c12 { grid-column: span 12; } .c8 { grid-column: span 8; } .c7 { grid-column: span 7; } .c5 { grid-column: span 5; } .c6 { grid-column: span 6; } .c4 { grid-column: span 4; }
+@media (max-width: 1000px) { .c8, .c7, .c6, .c5, .c4 { grid-column: span 12; } main { padding: 12px 16px; } header { padding: 12px 16px; } }
+.kpis { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 140px), 1fr)); }
+.kpi .v { font-size: 26px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.kpi .l { color: var(--muted); margin-top: 2px; font-size: 13px; }
+.kpi.critical .v { color: var(--crit); } .kpi.high .v { color: var(--bad); } .kpi.medium .v { color: var(--warn); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 6px 8px; border-top: 1px solid var(--border); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; border-top: 0; white-space: nowrap; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.wrap { overflow-wrap: anywhere; }
+tr.click { cursor: pointer; } tr.click:hover td { background: var(--track); }
+.chip { font-size: 12px; padding: 1px 8px; border-radius: 10px; background: var(--track); color: var(--muted); display: inline-block; margin: 1px 2px 1px 0; white-space: nowrap; }
+.chip.bad { background: var(--bad-soft); color: var(--bad); } .chip.warn { background: var(--warn-soft); color: var(--warn); }
+.chip.good { background: var(--good-soft); color: var(--good); } .chip.acc { color: var(--accent); }
+.sev { font-weight: 650; text-transform: uppercase; font-size: 11px; letter-spacing: .03em; }
+.sev.critical { background: var(--crit-soft); color: var(--crit); } .sev.high { background: var(--bad-soft); color: var(--bad); }
+.sev.medium { background: var(--warn-soft); color: var(--warn); } .sev.low { background: var(--track); color: var(--muted); }
+.bar { display: inline-block; width: 70px; max-width: 30vw; height: 8px; background: var(--track); border-radius: 4px; vertical-align: middle; margin-right: 6px; overflow: hidden; }
+.bar > div { height: 100%; background: var(--good); }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; align-items: end; }
+label { display: grid; gap: 3px; color: var(--muted); font-size: 12px; min-width: 0; }
+select, input, button, textarea { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; min-width: 0; max-width: 100%; }
+textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; width: 100%; }
+button { cursor: pointer; background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+button.ghost { background: transparent; color: var(--accent); }
+button.small { padding: 2px 8px; font-size: 12px; }
+.msg { padding: 8px 10px; border-radius: 6px; margin-top: 8px; overflow-wrap: anywhere; }
+.msg.err { background: var(--bad-soft); color: var(--bad); } .msg.ok { background: var(--good-soft); color: var(--good); }
+.note { font-size: 12px; color: var(--muted); margin-top: 8px; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; overflow-wrap: anywhere; }
+.form { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); align-items: end; }
+.steps { list-style: none; margin: 0; padding: 0; }
+.steps li { border-left: 3px solid var(--border); padding: 6px 0 8px 12px; margin-left: 4px; }
+.steps li.allow, .steps li.pass { border-color: var(--good); } .steps li.deny, .steps li.fail { border-color: var(--bad); }
+.steps .stage { font-weight: 650; }
+.verdict { font-size: 20px; font-weight: 700; }
+.verdict.allow { color: var(--good); } .verdict.deny { color: var(--bad); }
+pre.diff { margin: 0; font-size: 12px; line-height: 1.45; max-height: 520px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+pre.diff .a { background: var(--add); display: block; } pre.diff .d { background: var(--del); display: block; } pre.diff .h { color: var(--muted); display: block; }
+.svgwrap { width: 100%; overflow: hidden; }
+svg text { fill: var(--text); font-size: 12px; }
+svg .edge { stroke: var(--muted); stroke-width: 1.5; fill: none; }
+svg .elabel { fill: var(--muted); font-size: 10px; }
+svg .n-start rect { fill: var(--warn-soft); stroke: var(--warn); }
+svg .n-hop rect { fill: var(--track); stroke: var(--border); }
+svg .n-admin rect, svg .n-admin-principal rect { fill: var(--bad-soft); stroke: var(--bad); }
+svg .n-sel rect { stroke-width: 3; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); margin: 6px 0 10px; }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: middle; margin-right: 4px; border: 1px solid var(--border); }
+.empty { color: var(--muted); padding: 12px 0; }
+.facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px; font-size: 13px; }
+.facts dt { color: var(--muted); } .facts dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 700px) {
+  table.cards thead { display: none; }
+  table.cards, table.cards tbody, table.cards tr, table.cards td { display: block; width: 100%; }
+  table.cards tr { border-top: 1px solid var(--border); padding: 8px 0; }
+  table.cards td { border: 0; padding: 2px 0; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+  table.cards td.num { text-align: left; }
+  table.cards td[data-l]::before { content: attr(data-l) ": "; color: var(--muted); font-size: 12px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>IAM Lens</h1>
+  <nav>
+    <a href="#/findings" data-r="findings">Findings</a>
+    <a href="#/principals" data-r="principals">Principals</a>
+    <a href="#/simulate" data-r="simulate">Simulator</a>
+    <a href="#/escalation" data-r="escalation">Escalation paths</a>
+    <a href="#/review" data-r="review">Access review</a>
+  </nav>
+  <span class="muted" id="who"></span>
+</header>
+<main id="main"></main>
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const short = (arn) => (arn && arn.startsWith("arn:") ? arn.split(":").slice(5).join(":") : arn);
+const acct = (arn) => (arn && arn.startsWith("arn:") ? arn.split(":")[4] : "");
+const SEV = ["critical", "high", "medium", "low"];
+const main = $("#main");
+let SUMMARY = null, PRINCIPALS = null;
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, { headers: { "content-type": "application/json" }, ...opts });
+  const body = r.headers.get("content-type")?.includes("json") ? await r.json() : await r.text();
+  if (!r.ok) throw new Error(body.detail || r.statusText);
+  return body;
+}
+const sev = (s) => `<span class="chip sev ${s}">${s}</span>`;
+const plink = (arn, label) => `<a href="#/principal/${encodeURIComponent(arn)}">${esc(label || short(arn))}</a>`;
+
+async function summary() { return SUMMARY || (SUMMARY = await api("/api/summary")); }
+async function principals() { return PRINCIPALS || (PRINCIPALS = (await api("/api/principals?limit=1000")).items); }
+
+// ---------- findings ----------
+async function viewFindings(params) {
+  const s = await summary();
+  $("#who").textContent = `${s.company}, as of ${s.as_of}`;
+  main.innerHTML = `
+  <section class="panel c12"><h2>Environment</h2><div class="kpis">
+    ${SEV.map((x) => `<div class="kpi ${x}"><div class="v">${s.by_severity[x]}</div><div class="l">${x} findings</div></div>`).join("")}
+    <div class="kpi"><div class="v">${s.principals}</div><div class="l">principals in ${s.accounts} accounts</div></div>
+    <div class="kpi"><div class="v">${s.escalation_paths}</div><div class="l">principals with a path to admin</div></div>
+    <div class="kpi"><div class="v">${s.events.toLocaleString()}</div><div class="l">access events, 90 days</div></div>
+  </div></section>
+  <section class="panel c7"><h2>Findings by type</h2>
+    <table class="cards"><thead><tr><th>Type</th>${SEV.map((x) => `<th class="num">${x}</th>`).join("")}<th class="num">total</th></tr></thead><tbody>
+    ${s.by_type.map((t) => `<tr class="click" data-type="${t.type}"><td>${esc(t.label)}</td>${SEV.map((x) => `<td class="num" data-l="${x}">${t[x] || ""}</td>`).join("")}<td class="num" data-l="total"><b>${t.total}</b></td></tr>`).join("")}
+    </tbody></table></section>
+  <section class="panel c5"><h2>Least-privilege reduction</h2><div id="lp" class="empty">Generating a policy for every active principal and counting granted actions...</div></section>
+  <section class="panel c12"><h2>Findings</h2>
+    <div class="filters">
+      <label>Severity<select id="fsev"><option value="">all</option>${SEV.map((x) => `<option>${x}</option>`).join("")}</select></label>
+      <label>Type<select id="ftype"><option value="">all</option>${s.by_type.map((t) => `<option value="${t.type}">${esc(t.label)}</option>`).join("")}</select></label>
+      <label>Search<input id="fq" placeholder="principal or resource"></label>
+    </div><div id="flist"></div></section>`;
+  if (params.type) $("#ftype").value = params.type;
+  if (params.severity) $("#fsev").value = params.severity;
+  const load = async () => {
+    const q = new URLSearchParams({ limit: 300 });
+    if ($("#fsev").value) q.set("severity", $("#fsev").value);
+    if ($("#ftype").value) q.set("type", $("#ftype").value);
+    if ($("#fq").value) q.set("q", $("#fq").value);
+    const r = await api("/api/findings?" + q);
+    $("#flist").innerHTML = `<div class="note">${r.total} findings${r.total > r.items.length ? `, first ${r.items.length} shown` : ""}</div>
+    <table class="cards"><thead><tr><th>Severity</th><th>Type</th><th>Finding</th><th>Detail</th></tr></thead><tbody>
+    ${r.items.map((f) => `<tr><td>${sev(f.severity)}</td><td data-l="type">${esc(f.type_label)}</td>
+      <td class="wrap">${f.subject.includes(":iam::") && !f.subject.includes(":policy/") ? plink(f.subject, f.title) : esc(f.title)}</td>
+      <td class="wrap muted">${esc(f.detail)}</td></tr>`).join("")}</tbody></table>`;
+  };
+  ["fsev", "ftype"].forEach((id) => $("#" + id).addEventListener("change", load));
+  let t; $("#fq").addEventListener("input", () => { clearTimeout(t); t = setTimeout(load, 200); });
+  main.querySelectorAll("tr[data-type]").forEach((tr) => tr.addEventListener("click", () => { $("#ftype").value = tr.dataset.type; load(); }));
+  load();
+  api("/api/least-privilege/summary").then((lp) => {
+    $("#lp").className = "";
+    $("#lp").innerHTML = `<div class="kpis"><div class="kpi"><div class="v">${lp.reduction_pct}%</div><div class="l">fewer granted actions</div></div>
+      <div class="kpi"><div class="v">${lp.granted_before.toLocaleString()}</div><div class="l">granted now</div></div>
+      <div class="kpi"><div class="v">${lp.granted_after.toLocaleString()}</div><div class="l">after least privilege</div></div></div>
+      <table class="cards" style="margin-top:10px"><thead><tr><th>Kind</th><th class="num">Principals</th><th class="num">Before</th><th class="num">After</th><th class="num">Cut</th></tr></thead><tbody>
+      ${lp.by_kind.map((k) => `<tr><td>${k.kind}</td><td class="num" data-l="principals">${k.principals}</td><td class="num" data-l="before">${k.before}</td><td class="num" data-l="after">${k.after}</td><td class="num" data-l="cut">${(100 * (1 - k.after / k.before)).toFixed(1)}%</td></tr>`).join("")}
+      </tbody></table><div class="note">Granted actions counted against a 230-action catalog. Each generated policy is proven by the engine on its principal page.</div>`;
+  }).catch((e) => { $("#lp").innerHTML = `<div class="msg err">${esc(e.message)}</div>`; });
+}
+
+// ---------- principals ----------
+async function viewPrincipals() {
+  const rows = await principals();
+  main.innerHTML = `<section class="panel c12"><h2>Principals</h2>
+    <div class="filters"><label>Search<input id="pq" placeholder="name or ARN"></label>
+    <label>Kind<select id="pk"><option value="">all</option>${[...new Set(rows.map((r) => r.kind))].sort().map((k) => `<option>${k}</option>`).join("")}</select></label></div>
+    <div id="plist"></div></section>`;
+  const draw = () => {
+    const q = $("#pq").value.toLowerCase(), k = $("#pk").value;
+    const list = rows.filter((r) => (!k || r.kind === k) && (!q || r.arn.toLowerCase().includes(q) || (r.display_name || "").toLowerCase().includes(q)));
+    $("#plist").innerHTML = `<div class="note">${list.length} principals</div><table class="cards"><thead><tr><th>Principal</th><th>Kind</th><th>Account</th><th>Team</th><th class="num">Findings</th></tr></thead><tbody>
+    ${list.slice(0, 400).map((r) => `<tr><td class="wrap">${plink(r.arn)}${r.display_name && r.display_name !== r.name ? ` <span class="muted">${esc(r.display_name)}</span>` : ""}</td><td data-l="kind">${r.kind}</td><td data-l="account" class="mono">${r.account}</td><td data-l="team">${esc(r.team)}</td><td class="num" data-l="findings">${r.findings ? `${r.findings} ${r.worst ? sev(r.worst) : ""}` : ""}</td></tr>`).join("")}</tbody></table>`;
+  };
+  $("#pq").addEventListener("input", draw); $("#pk").addEventListener("change", draw); draw();
+}
+
+function diffHtml(lines) {
+  return lines.map((l) => {
+    const cls = l.startsWith("+++") || l.startsWith("---") || l.startsWith("@@") ? "h" : l.startsWith("+") ? "a" : l.startsWith("-") ? "d" : "";
+    return cls ? `<span class="${cls}">${esc(l)}</span>` : esc(l) + "\n";
+  }).join("");
+}
+
+async function viewPrincipal(arn) {
+  main.innerHTML = `<section class="panel c12 empty">Loading ${esc(short(arn))}...</section>`;
+  const p = await api("/api/principal?arn=" + encodeURIComponent(arn));
+  const u = p.usage;
+  main.innerHTML = `
+  <section class="panel c5"><h2>${p.type}</h2><h3>${esc(short(p.arn))}</h3>
+    <div class="muted" style="margin-bottom:8px">${esc(p.display_name && p.display_name !== p.name ? p.display_name + ", " : "")}${esc(p.title || p.kind)}</div>
+    <dl class="facts"><dt>ARN</dt><dd class="mono">${esc(p.arn)}</dd>
+    <dt>Account</dt><dd>${esc(p.account_name)} <span class="mono muted">${p.account}</span></dd>
+    <dt>OU path</dt><dd>${esc(p.ou_path.join(" / ") || "management (no SCPs)")}</dd>
+    ${p.manager ? `<dt>Manager</dt><dd>${plink(p.manager.arn, p.manager.name)}</dd>` : ""}
+    ${p.groups.length ? `<dt>Groups</dt><dd>${p.groups.map((g) => `<span class="chip">${esc(g)}</span>`).join("")}</dd>` : ""}
+    <dt>Policies</dt><dd>${p.policies.map((x) => `<span class="chip acc" title="${esc(x.source)}">${esc(x.name)}</span>`).join("") || "none"}</dd>
+    <dt>Boundary</dt><dd>${p.boundary ? esc(p.boundary.id) : "none"}</dd>
+    ${p.type === "user" ? `<dt>Console</dt><dd>${p.console ? "yes" : "no"}, MFA device ${p.mfa ? "yes" : "no"}</dd>
+    <dt>Access keys</dt><dd>${p.access_keys.map((k) => `<span class="chip">${esc(k.id)} created ${k.created}</span>`).join("") || "none"}</dd>` : ""}
+    <dt>Admin</dt><dd>${p.is_admin ? `<span class="chip bad">effective admin</span>` : "no"}</dd></dl>
+  </section>
+  <section class="panel c7"><h2>Effective permissions</h2>
+    <div class="kpis"><div class="kpi"><div class="v">${u.granted}</div><div class="l">actions granted</div></div>
+    <div class="kpi"><div class="v">${u.used}</div><div class="l">used in 90 days</div></div>
+    <div class="kpi"><div class="v">${u.services_granted}</div><div class="l">services granted</div></div>
+    <div class="kpi"><div class="v">${u.services_used}</div><div class="l">services used</div></div></div>
+    <table class="cards" style="margin-top:10px"><thead><tr><th>Service</th><th>Used of granted</th><th>Unused actions</th></tr></thead><tbody>
+    ${u.services.map((s) => `<tr><td>${s.service}</td><td data-l="used" style="white-space:nowrap"><span class="bar"><div style="width:${s.granted ? (100 * s.used / s.granted).toFixed(0) : 100}%"></div></span>${s.used} / ${s.granted}</td>
+      <td class="wrap muted" data-l="unused">${s.unused.length > 8 ? s.unused.slice(0, 8).map((a) => a.split(":")[1]).join(", ") + ` and ${s.unused.length - 8} more` : s.unused.map((a) => a.split(":")[1]).join(", ")}</td></tr>`).join("") || `<tr><td colspan="3" class="empty">Nothing granted.</td></tr>`}
+    </tbody></table>
+  </section>
+  ${p.findings.length ? `<section class="panel c12"><h2>Findings</h2><table class="cards"><tbody>${p.findings.map((f) => `<tr><td>${sev(f.severity)}</td><td class="wrap"><b>${esc(f.title)}</b><div class="muted">${esc(f.detail)}</div></td></tr>`).join("")}</tbody></table></section>` : ""}
+  <section class="panel c5"><h2>Most used actions</h2>
+    <table class="cards"><thead><tr><th>Action</th><th class="num">Calls</th><th>Last seen</th></tr></thead><tbody>
+    ${p.top_actions.map((a) => `<tr><td class="wrap mono">${esc(a.action)}${a.denied ? ` <span class="chip bad">${a.denied} denied</span>` : ""}</td><td class="num" data-l="calls">${a.count}</td><td data-l="last seen">${a.last_seen || "never allowed"}</td></tr>`).join("") || `<tr><td class="empty">No activity in 90 days.</td></tr>`}
+    </tbody></table></section>
+  <section class="panel c7"><h2>Suggested least-privilege policy</h2><div id="lpbox" class="empty">Generating and proving...</div></section>`;
+  try {
+    const r = await api("/api/least-privilege?arn=" + encodeURIComponent(arn));
+    const pr = r.proof;
+    $("#lpbox").className = "";
+    $("#lpbox").innerHTML = `<div class="kpis"><div class="kpi"><div class="v">${r.granted_before} &rarr; ${r.granted_after}</div><div class="l">granted actions (${r.reduction_pct}% fewer)</div></div>
+      <div class="kpi"><div class="v">${pr.observed_still_allowed}/${pr.observed_requests}</div><div class="l">observed requests still allowed</div></div>
+      <div class="kpi"><div class="v">${pr.unused_actions_denied}/${pr.unused_actions_checked}</div><div class="l">unused actions now denied</div></div></div>
+      <div class="msg ${pr.passed ? "ok" : "err"}">${pr.passed ? "Proof passed: the engine allows every request seen in the logs and denies every unused, unbuffered action." : "Proof failed: " + esc(JSON.stringify(pr.observed_broken.concat(pr.unused_still_allowed).slice(0, 5)))}</div>
+      ${r.buffered_actions.length ? `<div class="note">Kept by the buffer: ${r.buffered_actions.map(esc).join(", ")}</div>` : ""}
+      ${r.rare_actions.length ? `<div class="note">Rare (2 calls or fewer): ${r.rare_actions.map(esc).join(", ")}</div>` : ""}
+      ${r.kept_guardrails.length ? `<div class="note">Guardrail policies kept as they are: ${r.kept_guardrails.map(esc).join(", ")}</div>` : ""}
+      <h2 style="margin-top:12px">Diff against current allow policies</h2><pre class="diff mono">${diffHtml(r.diff)}</pre>`;
+  } catch (e) { $("#lpbox").innerHTML = `<div class="msg err">${esc(e.message)}</div>`; }
+}
+
+// ---------- simulator ----------
+async function viewSimulate(params) {
+  const rows = await principals();
+  const find = (suffix) => rows.find((r) => r.arn.endsWith(suffix))?.arn;
+  const anyUser = (team) => rows.find((r) => r.team === team && r.kind === "human" && r.arn.includes(":user/"))?.arn;
+  const presets = [
+    ["Cross-account read of the data lake", find(":role/app-ml-worker"), "s3:GetObject", "arn:aws:s3:::cobaltline-data-lake/curated/features-2026.parquet", ""],
+    ["Vendor role with external ID", find(":role/vendor-parcelwise-monitoring"), "cloudwatch:GetMetricData", "*", ""],
+    ["Finance analyst off the corporate network", anyUser("finance"), "ce:GetCostAndUsage", "*", "aws:SourceIp=192.0.2.44\naws:MultiFactorAuthPresent=true\naws:ViaAWSService=false"],
+    ["Orders engineer without MFA", anyUser("orders"), "dynamodb:GetItem", "arn:aws:dynamodb:us-east-1:" + acct(anyUser("orders")) + ":table/orders-prod", "aws:MultiFactorAuthPresent=false"],
+    ["Sandbox admin blocked by the SCP allowlist", find("sandbox-admin"), "iam:CreateRole", "arn:aws:iam::" + acct(find("sandbox-admin")) + ":role/experiment", ""],
+    ["Break-glass assume without MFA", rows.find((r) => r.team === "platform" && r.kind === "human")?.arn, "sts:AssumeRole", find(":role/breakglass-admin"), "aws:MultiFactorAuthPresent=false"],
+  ].filter((p) => p[1]);
+  main.innerHTML = `<section class="panel c5"><h2>Policy simulator</h2>
+    <div class="form" style="grid-template-columns:1fr">
+      <label>Principal ARN<input id="sp" list="plist" placeholder="arn:aws:iam::...:user/..."></label>
+      <datalist id="plist">${rows.map((r) => `<option value="${esc(r.arn)}">`).join("")}</datalist>
+      <label>Action<input id="sa" placeholder="s3:GetObject"></label>
+      <label>Resource ARN<input id="sr" placeholder="arn:aws:s3:::bucket/key or *"></label>
+      <label>Context, one key=value per line<textarea id="sc" rows="4" placeholder="aws:SourceIp=203.0.113.10&#10;aws:MultiFactorAuthPresent=true"></textarea></label>
+      <div><button id="go">Simulate</button></div>
+    </div>
+    <h2 style="margin-top:14px">Examples</h2><div>${presets.map((p, i) => `<button class="ghost small" data-i="${i}" style="margin:2px">${esc(p[0])}</button>`).join("")}</div>
+    <div class="note">Request keys aws:PrincipalArn, aws:PrincipalAccount, aws:PrincipalOrgID, aws:username, aws:PrincipalTag/*, and aws:RequestedRegion are filled in from the principal and resource.</div>
+  </section><section class="panel c7"><h2>Decision path</h2><div id="sout" class="empty">Pick an example or fill in the form.</div></section>`;
+  const set = (p) => { $("#sp").value = p[1]; $("#sa").value = p[2]; $("#sr").value = p[3]; $("#sc").value = p[4]; };
+  main.querySelectorAll("button[data-i]").forEach((b) => b.addEventListener("click", () => { set(presets[+b.dataset.i]); run(); }));
+  const run = async () => {
+    const context = {};
+    $("#sc").value.split("\n").map((l) => l.trim()).filter(Boolean).forEach((l) => { const i = l.indexOf("="); if (i > 0) context[l.slice(0, i).trim()] = l.slice(i + 1).trim(); });
+    try {
+      const d = await api("/api/simulate", { method: "POST", body: JSON.stringify({ principal: $("#sp").value.trim(), action: $("#sa").value.trim(), resource: $("#sr").value.trim() || "*", context }) });
+      $("#sout").className = "";
+      $("#sout").innerHTML = `<div class="verdict ${d.allowed ? "allow" : "deny"}">${d.decision}</div><div style="margin:4px 0 12px">${esc(d.reason)}</div>
+        <ol class="steps">${d.path.map((s) => `<li class="${s.outcome.replace(" ", "-")}"><span class="stage">${esc(s.stage)}</span> <span class="chip ${s.outcome === "allow" || s.outcome === "pass" ? "good" : s.outcome === "deny" || s.outcome === "fail" ? "bad" : ""}">${esc(s.outcome)}</span><div>${esc(s.detail)}</div>
+          ${s.statements.map((st) => `<div class="mono muted">${esc(st.policy_name)} [${esc(st.sid)}] ${st.effect}${st.principal_match ? ", principal match: " + st.principal_match : ""}${(st.conditions || []).map((c) => "<br>&nbsp;&nbsp;" + esc(c)).join("")}</div>`).join("")}</li>`).join("")}</ol>
+        <div class="note mono">${esc(d.principal)}<br>${esc(d.action)} on ${esc(d.resource)}</div>`;
+    } catch (e) { $("#sout").innerHTML = `<div class="msg err">${esc(e.message)}</div>`; }
+  };
+  $("#go").addEventListener("click", run);
+  if (params.principal) { $("#sp").value = params.principal; }
+  else if (presets[0]) { set(presets[0]); run(); }
+}
+
+// ---------- escalation graph ----------
+async function viewEscalation() {
+  const g = await api("/api/escalation");
+  main.innerHTML = `<section class="panel c12"><h2>Privilege escalation paths</h2>
+    <div class="legend"><span><span class="sw" style="background:var(--warn-soft)"></span>starting principals</span><span><span class="sw" style="background:var(--track)"></span>intermediate role or user</span><span><span class="sw" style="background:var(--bad-soft)"></span>admin</span></div>
+    <div class="svgwrap" id="graph"></div>
+    <div class="note">${g.paths.reduce((a, p) => a + p.members, 0)} principals can reach admin. Starting principals that share a path are grouped. Every edge was checked with the evaluation engine, so SCPs and permissions boundaries already cut the paths they block.</div></section>
+    <section class="panel c12"><h2>Paths</h2><table class="cards"><thead><tr><th>Start</th><th>Steps</th></tr></thead><tbody>
+    ${g.paths.map((p) => `<tr><td class="wrap">${p.members === 1 ? plink(p.steps[0].from) : esc(p.label)}</td><td class="wrap mono">${p.steps.map((s) => `${esc(short(s.from))} <b>${esc(s.kind)}</b> (${esc(s.action)} on ${esc(short(s.resource))}) &rarr; ${s.to === "ADMIN" ? "<b>admin</b>" : esc(short(s.to))}`).join("<br>")}</td></tr>`).join("")}
+    </tbody></table></section>`;
+  drawGraph(g);
+}
+
+function drawGraph(g) {
+  const W = 230, H = 34, GX = 120, GY = 18;
+  const maxD = Math.max(...g.nodes.map((n) => n.depth));
+  const cols = {};
+  g.nodes.forEach((n) => (cols[n.depth] = cols[n.depth] || []).push(n));
+  const pos = {};
+  let height = 0;
+  Object.entries(cols).forEach(([d, ns]) => {
+    ns.sort((a, b) => (a.kind === "admin" ? -1 : b.kind === "admin" ? 1 : a.label.localeCompare(b.label)));
+    ns.forEach((n, i) => { pos[n.id] = { x: (maxD - d) * (W + GX) + 4, y: i * (H + GY) + 4 }; });
+    height = Math.max(height, ns.length * (H + GY));
+  });
+  const width = (maxD + 1) * (W + GX) - GX + 8;
+  const trunc = (s, n = 30) => (s.length > n ? s.slice(0, n - 1) + "..." : s);
+  const edges = g.edges.map((e) => {
+    const a = pos[e.from], b = pos[e.to];
+    if (!a || !b) return "";
+    const x1 = a.x + W, y1 = a.y + H / 2, x2 = b.x, y2 = b.y + H / 2, mx = (x1 + x2) / 2;
+    return `<path class="edge" d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2 - 6},${y2}" marker-end="url(#arr)"><title>${esc(e.action)} on ${esc(e.resource)}</title></path>
+      <text class="elabel" x="${x1 + 8}" y="${y1 - 5}">${esc(e.kind)}</text>`;
+  }).join("");
+  const nodes = g.nodes.map((n) => {
+    const p = pos[n.id];
+    const link = n.kind !== "admin" && n.kind !== "start" ? `#/principal/${encodeURIComponent(n.id)}` : n.members && n.members.length === 1 ? `#/principal/${encodeURIComponent(n.members[0])}` : null;
+    const body = `<g class="n-${n.kind}"><rect x="${p.x}" y="${p.y}" width="${W}" height="${H}" rx="7"></rect><text x="${p.x + 10}" y="${p.y + 21}">${esc(trunc(n.label))}</text><title>${esc(n.label)}</title></g>`;
+    return link ? `<a href="${link}">${body}</a>` : body;
+  }).join("");
+  $("#graph").innerHTML = `<svg viewBox="0 0 ${width} ${height + 8}" width="100%" role="img" aria-label="Escalation graph">
+    <defs><marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color:var(--muted)"></path></marker></defs>${edges}${nodes}</svg>`;
+}
+
+// ---------- access review ----------
+async function viewReview(params) {
+  let list = await api("/api/campaigns");
+  if (!list.length) {
+    main.innerHTML = `<section class="panel c12"><h2>Access review</h2><p>No campaign yet. A campaign asks each manager to keep or revoke every group, attached policy, and access key their reports hold, with a suggestion from 90 days of usage.</p>
+      <div class="filters"><label>Name<input id="cn" value="Q4 2026 access review"></label><label>Deadline<input id="cd" type="date" value="2026-11-21"></label><button id="cc">Start campaign</button></div><div id="cmsg"></div></section>`;
+    $("#cc").addEventListener("click", async () => {
+      try { await api("/api/campaigns", { method: "POST", body: JSON.stringify({ name: $("#cn").value, deadline: $("#cd").value }) }); viewReview(params); }
+      catch (e) { $("#cmsg").innerHTML = `<div class="msg err">${esc(e.message)}</div>`; }
+    });
+    return;
+  }
+  const cid = params.c || list[list.length - 1].id;
+  const reviewer = params.reviewer || "";
+  const c = await api(`/api/campaigns/${cid}?limit=5000${reviewer ? "&reviewer=" + encodeURIComponent(reviewer) : ""}`);
+  const items = c.item_list;
+  main.innerHTML = `<section class="panel c12"><h2>${esc(c.name)} <span class="muted">${c.id}, due ${c.deadline}, ${c.status}</span></h2><div class="kpis">
+    <div class="kpi"><div class="v">${c.items}</div><div class="l">review items</div></div>
+    <div class="kpi"><div class="v">${c.decided}</div><div class="l">decided</div></div>
+    <div class="kpi"><div class="v">${c.suggested_revoke}</div><div class="l">suggested revoke</div></div>
+    <div class="kpi"><div class="v">${c.revoked}</div><div class="l">revoked</div></div>
+    <div class="kpi"><div class="v">${c.escalated}</div><div class="l">escalated</div></div>
+    <div class="kpi"><div class="v">${c.overrides}</div><div class="l">overrides of a suggestion</div></div></div>
+    <div class="filters" style="margin-top:12px">
+      <label>Reviewer<select id="rv"><option value="">all reviewers</option>${c.reviewers.map((r) => `<option value="${esc(r.reviewer)}">${esc(r.name)} (${r.pending} pending)</option>`).join("")}</select></label>
+      <label>Escalate as of<input id="ed" type="date" value="2026-11-25"></label><button class="ghost" id="esc">Escalate overdue</button>
+      <a href="/api/campaigns/${cid}/evidence?format=csv">Evidence CSV</a> <a href="/api/campaigns/${cid}/evidence">Evidence JSON</a>
+    </div><div id="rmsg"></div></section>
+    <section class="panel c12"><h2>Items${reviewer ? " for this reviewer" : ""}</h2>
+    <table class="cards"><thead><tr><th>User</th><th>Entitlement</th><th>Suggestion</th><th>Reviewer</th><th>Decision</th></tr></thead><tbody>
+    ${items.slice(0, 300).map((i) => `<tr><td class="wrap">${plink(i.user, i.user_name)} <span class="muted">${esc(i.team)}</span></td>
+      <td data-l="entitlement" class="wrap"><span class="chip">${esc(i.entitlement.type)}</span> ${esc(i.entitlement.name)}</td>
+      <td data-l="suggestion" class="wrap"><span class="chip ${i.suggestion === "revoke" ? "bad" : "good"}">${i.suggestion}</span> <span class="muted">${esc(i.suggestion_reason)}</span></td>
+      <td data-l="reviewer" class="wrap">${esc(short(i.reviewer))}${i.escalations.length ? ` <span class="chip warn">escalated</span>` : ""}<div class="muted">due ${i.due}</div></td>
+      <td data-l="decision">${i.decision ? `<span class="chip ${i.decision === "revoke" ? "bad" : "good"}">${i.decision}</span>` : `<button class="small" data-k="${i.id}" data-d="keep" data-r="${esc(i.reviewer)}" data-s="${i.suggestion}">keep</button> <button class="small ghost" data-k="${i.id}" data-d="revoke" data-r="${esc(i.reviewer)}" data-s="${i.suggestion}">revoke</button>`}</td></tr>`).join("")}
+    </tbody></table>${items.length > 300 ? `<div class="note">First 300 of ${items.length}. Pick a reviewer to narrow.</div>` : ""}</section>`;
+  $("#rv").value = reviewer;
+  $("#rv").addEventListener("change", () => (location.hash = `#/review?c=${cid}&reviewer=${encodeURIComponent($("#rv").value)}`));
+  $("#esc").addEventListener("click", async () => {
+    const r = await api(`/api/campaigns/${cid}/escalate`, { method: "POST", body: JSON.stringify({ now: $("#ed").value }) });
+    $("#rmsg").innerHTML = `<div class="msg ok">${r.escalated} overdue items moved to the next manager up.</div>`;
+    setTimeout(() => viewReview(params), 900);
+  });
+  main.querySelectorAll("button[data-k]").forEach((b) => b.addEventListener("click", async () => {
+    let comment = "";
+    if (b.dataset.d !== b.dataset.s) { comment = prompt("You are overriding the suggestion. Reason for the auditors:") || ""; if (!comment) return; }
+    try {
+      await api(`/api/campaigns/${cid}/items/${b.dataset.k}/decision`, { method: "POST", body: JSON.stringify({ reviewer: b.dataset.r, decision: b.dataset.d, comment }) });
+      viewReview(params);
+    } catch (e) { $("#rmsg").innerHTML = `<div class="msg err">${esc(e.message)}</div>`; }
+  }));
+}
+
+// ---------- router ----------
+async function route() {
+  const h = location.hash.slice(2) || "findings";
+  const [path, qs] = h.split("?");
+  const params = Object.fromEntries(new URLSearchParams(qs || ""));
+  const [name, ...rest] = path.split("/");
+  document.querySelectorAll("nav a").forEach((a) => a.classList.toggle("on", a.dataset.r === (name === "principal" ? "principals" : name)));
+  if (!$("#who").textContent) summary().then((s) => ($("#who").textContent = `${s.company}, as of ${s.as_of}`));
+  try {
+    if (name === "principal") await viewPrincipal(decodeURIComponent(rest.join("/")));
+    else if (name === "principals") await viewPrincipals();
+    else if (name === "simulate") await viewSimulate(params);
+    else if (name === "escalation") await viewEscalation();
+    else if (name === "review") await viewReview(params);
+    else await viewFindings(params);
+  } catch (e) { main.innerHTML = `<section class="panel c12"><div class="msg err">${esc(e.message)}</div></section>`; }
+  window.scrollTo(0, 0);
+}
+window.addEventListener("hashchange", route);
+route();
+</script>
+</body>
+</html>

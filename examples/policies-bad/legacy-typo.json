@@ -1,0 +1,11 @@
+{
+  "Version": "2008-10-17",
+  "Statement": [
+    {
+      "Sid": "Old",
+      "Effect": "Allow",
+      "Action": "s3:GetObject",
+      "Resources": "*"
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+"""Structured JSON logs, one object per line."""
+
+from __future__ import annotations
+
+import json
+import logging
+import sys
+from datetime import UTC, datetime
+
+
+class JsonFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        entry = {
+            "ts": datetime.now(UTC).isoformat(timespec="milliseconds"),
+            "level": record.levelname.lower(),
+            "logger": record.name,
+            "msg": record.getMessage(),
+        }
+        entry.update(getattr(record, "fields", {}))
+        if record.exc_info:
+            entry["exc"] = self.formatException(record.exc_info)
+        return json.dumps(entry, default=str)
+
+
+def get_logger(stream=None) -> logging.Logger:
+    logger = logging.getLogger("iamlens")
+    if not logger.handlers:
+        handler = logging.StreamHandler(stream or sys.stdout)
+        handler.setFormatter(JsonFormatter())
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
+        logger.propagate = False
+    return logger
+
+
+def log_event(logger: logging.Logger, msg: str, **fields) -> None:
+    logger.info(msg, extra={"fields": fields})

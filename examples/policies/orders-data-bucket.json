@@ -1,0 +1,32 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "TlsOnly",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::cobaltline-orders-prod-data",
+        "arn:aws:s3:::cobaltline-orders-prod-data/*"
+      ],
+      "Condition": {
+        "Bool": {
+          "aws:SecureTransport": "false"
+        }
+      }
+    },
+    {
+      "Sid": "OrgRead",
+      "Effect": "Allow",
+      "Principal": "*",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::cobaltline-orders-prod-data/shared/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:PrincipalOrgID": "o-c0ba1t1ine"
+        }
+      }
+    }
+  ]
+}
